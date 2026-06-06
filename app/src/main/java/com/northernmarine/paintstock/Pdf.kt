@@ -192,7 +192,7 @@ object Pdf {
     }
 
     // ---------- QUOTATION / REQUISITION ----------
-    fun quotation(ctx: Context, lines: List<Pair<PaintItem, Int>>): PdfDocument {
+    fun quotation(ctx: Context, lines: List<Pair<PaintItem, Double>>): PdfDocument {
         val doc = PdfDocument()
         val title = p(16f, true, Color.rgb(15, 33, 64))
         val lbl = p(8f, false, Color.rgb(120, 120, 120))
@@ -214,13 +214,13 @@ object Pdf {
         c.drawText("CODE", xCode, y, lbl); c.drawText("PRODUCT / COLOUR", xName, y, lbl); c.drawText("QUANTITY", xQty, y, lbl); c.drawText("TOTAL", xTot, y, lbl)
         y += 6f; c.drawLine(M, y, PW - M, y, line); y += 14f
         var grand = 0.0; var anyPrice = false; var totL = 0.0
-        for ((it, qty) in lines) {
-            if (qty <= 0) continue
+        for ((it, litres) in lines) {
+            if (litres <= 0) continue
             if (y > PH - 60f) { footer(); doc.finishPage(page); pageNo++; page = doc.startPage(PdfDocument.PageInfo.Builder(PW, PH, pageNo).create()); c = page.canvas; y = 50f }
-            val litres = qty * it.canVol; totL += litres
+            totL += litres
             c.drawText(it.code, xCode, y, txt); c.drawText(it.title(), xName, y, txt)
             c.drawText("${trim(litres)} L", xQty, y, hd)
-            if (it.pricePerCan > 0) { anyPrice = true; val lineTot = it.pricePerCan * qty; grand += lineTot; c.drawText(trim(lineTot), xTot, y, txt) }
+            if (it.pricePerCan > 0 && it.canVol > 0) { anyPrice = true; val lineTot = it.pricePerCan * (litres / it.canVol); grand += lineTot; c.drawText(trim(lineTot), xTot, y, txt) }
             else c.drawText("-", xTot, y, small)
             y += 14f
         }

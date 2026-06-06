@@ -98,7 +98,7 @@ class MainActivity : AppCompatActivity() {
         panels[Screen.LABELS] = findViewById(R.id.panelLabels)
         panels[Screen.SETTINGS] = findViewById(R.id.panelSettings)
 
-        findViewById<TextView>(R.id.tvVersion).text = "native v1.6 · Paint Inventory"
+        findViewById<TextView>(R.id.tvVersion).text = "native v1.7 · Paint Inventory"
 
         findViewById<Button>(R.id.btnScan).setOnClickListener { show(Screen.SCAN) }
         findViewById<Button>(R.id.btnList).setOnClickListener { show(Screen.LIST) }
@@ -452,23 +452,22 @@ class MainActivity : AppCompatActivity() {
         val box = findViewById<LinearLayout>(R.id.reqContainer); box.removeAllViews(); reqInputs.clear()
         for (it in items) {
             val row = LinearLayout(this); row.orientation = LinearLayout.HORIZONTAL; row.setPadding(0, 6, 0, 6)
-            val tv = TextView(this); tv.text = "${it.code}  ${it.title()}\n${it.qtyCans} on board"
+            val tv = TextView(this); tv.text = "${it.code}  ${it.title()}\n${trim(it.robLitres())} L on board"
             tv.setTextColor(0xFFCFE3FF.toInt()); tv.textSize = 13f
             tv.layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-            val et = EditText(this); et.hint = "cans"; et.inputType = android.text.InputType.TYPE_CLASS_NUMBER
+            val et = EditText(this); et.hint = "litres"; et.inputType = android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
             et.setBackgroundResource(R.drawable.field); et.setTextColor(0xFFFFFFFF.toInt()); et.setPadding(20, 16, 20, 16)
             et.layoutParams = LinearLayout.LayoutParams(180, LinearLayout.LayoutParams.WRAP_CONTENT)
-            // prefill suggested if below min
-            if (it.minCans > 0 && it.qtyCans < it.minCans) et.setText((it.minCans - it.qtyCans).toString())
+            if (it.minCans > 0 && it.qtyCans < it.minCans) et.setText(trim((it.minCans - it.qtyCans) * it.canVol))
             reqInputs[it.code] = et
             row.addView(tv); row.addView(et); box.addView(row)
         }
     }
 
     private fun quoteManual() {
-        val lines = ArrayList<Pair<PaintItem, Int>>()
-        for (it in items) { val q = reqInputs[it.code]?.text?.toString()?.toIntOrNull() ?: 0; if (q > 0) lines.add(Pair(it, q)) }
-        if (lines.isEmpty()) return toast("Enter quantities first")
+        val lines = ArrayList<Pair<PaintItem, Double>>()
+        for (it in items) { val l = reqInputs[it.code]?.text?.toString()?.toDoubleOrNull() ?: 0.0; if (l > 0) lines.add(Pair(it, l)) }
+        if (lines.isEmpty()) return toast("Enter litres first")
         exportPdf(Pdf.quotation(this, lines), "PaintQuotation_${Stock.stamp()}.pdf", false)
     }
 
@@ -479,8 +478,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun quoteAuto() {
-        val lines = ArrayList<Pair<PaintItem, Int>>()
-        for (it in items) if (it.minCans > 0 && it.qtyCans < it.minCans) lines.add(Pair(it, it.minCans - it.qtyCans))
+        val lines = ArrayList<Pair<PaintItem, Double>>()
+        for (it in items) if (it.minCans > 0 && it.qtyCans < it.minCans) lines.add(Pair(it, (it.minCans - it.qtyCans) * it.canVol))
         if (lines.isEmpty()) return toast("No items below minimum (set MIN on items first)")
         exportPdf(Pdf.quotation(this, lines), "PaintQuotation_${Stock.stamp()}.pdf", false)
     }
