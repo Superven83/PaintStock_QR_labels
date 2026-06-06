@@ -16,10 +16,10 @@
         </LinearLayout>
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:background="#E6091627"
             android:orientation="horizontal" android:paddingStart="14dp" android:paddingEnd="14dp" android:paddingBottom="10dp">
-            <Button android:id="@+id/btnModeMove" style="@style/Btn" android:layout_width="0dp" android:layout_height="44dp" android:layout_weight="1"
-                android:layout_marginEnd="5dp" android:background="@drawable/btn_blue" android:text="Set / Movement" android:textColor="#FFFFFF" android:textSize="13sp" />
             <Button android:id="@+id/btnModeCount" style="@style/Btn" android:layout_width="0dp" android:layout_height="44dp" android:layout_weight="1"
-                android:layout_marginStart="5dp" android:background="@drawable/btn_dark" android:text="Count cans" android:textColor="#FFFFFF" android:textSize="13sp" />
+                android:layout_marginEnd="5dp" android:background="@drawable/btn_blue" android:text="📋 Inventory" android:textColor="#FFFFFF" android:textSize="13sp" />
+            <Button android:id="@+id/btnModeMove" style="@style/Btn" android:layout_width="0dp" android:layout_height="44dp" android:layout_weight="1"
+                android:layout_marginStart="5dp" android:background="@drawable/btn_dark" android:text="✏️ Adjust one" android:textColor="#FFFFFF" android:textSize="13sp" />
         </LinearLayout>
         <TextView android:id="@+id/tvScanInfo" android:layout_width="match_parent" android:layout_height="wrap_content"
             android:layout_margin="14dp" android:background="@drawable/banner_info" android:padding="14dp"
@@ -181,6 +181,11 @@
                     android:layout_marginTop="6dp" android:layout_marginBottom="8dp" android:background="@drawable/btn_green" android:text="Open inventory PDF" android:textColor="#FFFFFF" />
                 <Button android:id="@+id/btnInvShare" style="@style/Btn" android:layout_width="match_parent" android:layout_height="50dp"
                     android:layout_marginBottom="22dp" android:background="@drawable/btn_dark" android:text="Share inventory PDF" android:textColor="#FFFFFF" />
+                <TextView style="@style/Lbl" android:text="CONSUMPTION (SINCE LAST INVENTORY)" />
+                <Button android:id="@+id/btnConsOpen" style="@style/Btn" android:layout_width="match_parent" android:layout_height="52dp"
+                    android:layout_marginTop="6dp" android:layout_marginBottom="8dp" android:background="@drawable/btn_blue" android:text="Open consumption PDF" android:textColor="#FFFFFF" />
+                <Button android:id="@+id/btnConsShare" style="@style/Btn" android:layout_width="match_parent" android:layout_height="50dp"
+                    android:layout_marginBottom="22dp" android:background="@drawable/btn_dark" android:text="Share consumption PDF" android:textColor="#FFFFFF" />
                 <TextView style="@style/Lbl" android:text="REQUISITION / QUOTATION" />
                 <Button android:id="@+id/btnQuoAuto" style="@style/Btn" android:layout_width="match_parent" android:layout_height="52dp"
                     android:layout_marginTop="6dp" android:layout_marginBottom="8dp" android:background="@drawable/btn_blue" android:text="Auto: items under minimum" android:textColor="#FFFFFF" />

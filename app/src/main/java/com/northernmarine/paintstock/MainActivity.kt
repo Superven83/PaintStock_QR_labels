@@ -50,7 +50,7 @@ class MainActivity : AppCompatActivity() {
     private var editing: PaintItem? = null     // item being edited (null = new)
     private val reqInputs = HashMap<String, EditText>()
     private val lblChecks = HashMap<String, android.widget.CheckBox>()
-    private var countMode = false
+    private var countMode = true
     private val countSet = HashSet<String>()
     private val countTally = LinkedHashMap<String, Int>()
 
@@ -98,7 +98,7 @@ class MainActivity : AppCompatActivity() {
         panels[Screen.LABELS] = findViewById(R.id.panelLabels)
         panels[Screen.SETTINGS] = findViewById(R.id.panelSettings)
 
-        findViewById<TextView>(R.id.tvVersion).text = "native v1.4 · Paint Inventory"
+        findViewById<TextView>(R.id.tvVersion).text = "native v1.6 · Paint Inventory"
 
         findViewById<Button>(R.id.btnScan).setOnClickListener { show(Screen.SCAN) }
         findViewById<Button>(R.id.btnList).setOnClickListener { show(Screen.LIST) }
@@ -125,6 +125,8 @@ class MainActivity : AppCompatActivity() {
 
         findViewById<Button>(R.id.btnInvOpen).setOnClickListener { exportPdf(Pdf.inventory(this, items), "PaintInventory_${Stock.stamp()}.pdf", false) }
         findViewById<Button>(R.id.btnInvShare).setOnClickListener { exportPdf(Pdf.inventory(this, items), "PaintInventory_${Stock.stamp()}.pdf", true) }
+        findViewById<Button>(R.id.btnConsOpen).setOnClickListener { openConsumption(false) }
+        findViewById<Button>(R.id.btnConsShare).setOnClickListener { openConsumption(true) }
         findViewById<Button>(R.id.btnQuoAuto).setOnClickListener { quoteAuto() }
         findViewById<Button>(R.id.btnQuoManual).setOnClickListener { show(Screen.REQ) }
         findViewById<Button>(R.id.btnLabOpen).setOnClickListener { show(Screen.LABELS) }
@@ -263,11 +265,14 @@ class MainActivity : AppCompatActivity() {
 
     private fun finishCount() {
         if (countTally.isEmpty()) { toast("Nothing scanned"); return }
-        val summary = countTally.entries.joinToString("\n") { "${it.key} = ${it.value}" }
-        AlertDialog.Builder(this).setTitle("Apply counted quantities to stock?").setMessage(summary)
-            .setPositiveButton("Apply") { _, _ ->
-                for ((base, n) in countTally) { items.firstOrNull { it.code == base }?.qtyCans = n }
-                Stock.save(this, items); resetCount(); toast("Stock updated"); show(Screen.LIST)
+        val counted = countTally.entries.joinToString("\n") { "${it.key} = ${it.value}" }
+        val zeroed = Stock.notScanned(items, countTally)
+        var msg = "Save this as the new inventory (current stock)?\n\nCounted:\n$counted"
+        if (zeroed.isNotEmpty()) msg += "\n\nNOT scanned → set to 0:\n" + zeroed.joinToString("\n") { "${it.code} ${it.title()} (${it.qtyCans}→0)" }
+        AlertDialog.Builder(this).setTitle("Finish inventory").setMessage(msg)
+            .setPositiveButton("Save inventory") { _, _ ->
+                Stock.finishInventory(this, items, HashMap(countTally))
+                resetCount(); toast("Inventory saved"); show(Screen.HOME)
             }
             .setNegativeButton("Cancel", null).show()
     }
@@ -465,6 +470,12 @@ class MainActivity : AppCompatActivity() {
         for (it in items) { val q = reqInputs[it.code]?.text?.toString()?.toIntOrNull() ?: 0; if (q > 0) lines.add(Pair(it, q)) }
         if (lines.isEmpty()) return toast("Enter quantities first")
         exportPdf(Pdf.quotation(this, lines), "PaintQuotation_${Stock.stamp()}.pdf", false)
+    }
+
+    private fun openConsumption(share: Boolean) {
+        val state = Stock.consumption(this)
+        if (state == null) { toast("Do at least two inventories first"); return }
+        exportPdf(Pdf.consumption(this, state), "PaintConsumption_${Stock.stamp()}.pdf", share)
     }
 
     private fun quoteAuto() {

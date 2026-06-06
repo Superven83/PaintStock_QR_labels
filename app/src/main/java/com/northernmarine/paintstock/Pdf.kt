@@ -210,28 +210,68 @@ object Pdf {
         c.drawText("PAINT REQUISITION / QUOTATION", M, 36f, title)
         c.drawText("${Prefs.vessel(ctx)}   ·   ${Stock.dmy()}   ·   Supplier: ${Prefs.supplier(ctx)}", M, 52f, small)
         var y = 80f
-        val xCode = M; val xName = M + 52f; val xCan = M + 300f; val xReq = M + 360f; val xPr = M + 430f; val xTot = M + 500f
-        c.drawText("CODE", xCode, y, lbl); c.drawText("PRODUCT / COLOUR", xName, y, lbl); c.drawText("CAN L", xCan, y, lbl)
-        c.drawText("CANS", xReq, y, lbl); c.drawText("PRICE", xPr, y, lbl); c.drawText("TOTAL", xTot, y, lbl)
+        val xCode = M; val xName = M + 52f; val xQty = M + 360f; val xTot = M + 470f
+        c.drawText("CODE", xCode, y, lbl); c.drawText("PRODUCT / COLOUR", xName, y, lbl); c.drawText("QUANTITY", xQty, y, lbl); c.drawText("TOTAL", xTot, y, lbl)
         y += 6f; c.drawLine(M, y, PW - M, y, line); y += 14f
-        var grand = 0.0; var anyPrice = false
+        var grand = 0.0; var anyPrice = false; var totL = 0.0
         for ((it, qty) in lines) {
             if (qty <= 0) continue
             if (y > PH - 60f) { footer(); doc.finishPage(page); pageNo++; page = doc.startPage(PdfDocument.PageInfo.Builder(PW, PH, pageNo).create()); c = page.canvas; y = 50f }
+            val litres = qty * it.canVol; totL += litres
             c.drawText(it.code, xCode, y, txt); c.drawText(it.title(), xName, y, txt)
-            c.drawText(trim(it.canVol), xCan, y, txt); c.drawText(qty.toString(), xReq, y, hd)
-            if (it.pricePerCan > 0) { anyPrice = true; val lineTot = it.pricePerCan * qty; grand += lineTot
-                c.drawText(trim(it.pricePerCan), xPr, y, txt); c.drawText(trim(lineTot), xTot, y, txt) }
-            else { c.drawText("-", xPr, y, small); c.drawText("-", xTot, y, small) }
+            c.drawText("${trim(litres)} L", xQty, y, hd)
+            if (it.pricePerCan > 0) { anyPrice = true; val lineTot = it.pricePerCan * qty; grand += lineTot; c.drawText(trim(lineTot), xTot, y, txt) }
+            else c.drawText("-", xTot, y, small)
             y += 14f
         }
-        y += 6f; c.drawLine(M, y, PW - M, y, line); y += 16f
-        if (anyPrice) c.drawText("GRAND TOTAL:  ${trim(grand)}", M, y, hd)
-        else c.drawText("Quantities only (no prices set).", M, y, small)
+        y += 6f; c.drawLine(M, y, PW - M, y, line); y += 18f
+        c.drawText("TOTAL TO ORDER:  ${trim(totL)} L", M, y, hd)
+        if (anyPrice) { y += 16f; c.drawText("GRAND TOTAL (price):  ${trim(grand)}", M, y, small) }
         y += 30f
         c.drawLine(PW - M - 160f, y, PW - M, y, line); c.drawText("Chief Officer", PW - M - 150f, y + 14f, small)
         footer(); doc.finishPage(page); return doc
     }
 
     private fun trim(d: Double): String { val r = (d * 10).roundToInt() / 10.0; return if (r == r.toLong().toDouble()) r.toLong().toString() else r.toString() }
+
+    // ---------- CONSUMPTION ---------- (state from Stock.consumption)
+    fun consumption(ctx: Context, state: org.json.JSONObject): PdfDocument {
+        val doc = PdfDocument()
+        val title = p(16f, true, Color.rgb(15, 33, 64))
+        val lbl = p(8f, false, Color.rgb(120, 120, 120))
+        val hd = p(9f, true, Color.rgb(40, 40, 40))
+        val txt = p(9f, false)
+        val small = p(8f, false, Color.rgb(90, 90, 90))
+        val line = Paint().apply { color = Color.rgb(200, 200, 200); strokeWidth = 0.6f }
+        val accent = Paint().apply { color = Color.rgb(15, 33, 64) }
+        val logo = try { android.graphics.BitmapFactory.decodeResource(ctx.resources, R.drawable.logo_pdf) } catch (_: Throwable) { null }
+        var pageNo = 1
+        var page = doc.startPage(PdfDocument.PageInfo.Builder(PW, PH, pageNo).create()); var c = page.canvas
+        c.drawRect(0f, 0f, PW.toFloat(), 4f, accent)
+        if (logo != null) c.drawBitmap(Bitmap.createScaledBitmap(logo, 48, 48, true), PW - M - 48f, 24f, null)
+        c.drawText("PAINT CONSUMPTION", M, 40f, title)
+        c.drawText("${Prefs.vessel(ctx)}   ·   ${state.optString("consFrom")}  →  ${state.optString("consTo")}", M, 56f, small)
+        var y = 82f
+        val xCode = M; val xName = M + 52f; val xPrev = M + 330f; val xNow = M + 385f; val xUsed = M + 435f; val xUsedL = M + 485f
+        c.drawText("CODE", xCode, y, lbl); c.drawText("PRODUCT / COLOUR", xName, y, lbl); c.drawText("PREV", xPrev, y, lbl)
+        c.drawText("NOW", xNow, y, lbl); c.drawText("USED", xUsed, y, lbl); c.drawText("USED L", xUsedL, y, lbl)
+        y += 5f; c.drawLine(M, y, PW - M, y, line); y += 13f
+        var totL = 0.0
+        val rows = state.optJSONArray("consRows")
+        if (rows != null) for (i in 0 until rows.length()) {
+            val r = rows.getJSONObject(i)
+            if (y > PH - 60f) { c.drawLine(M, PH - 28f, PW - M, PH - 28f, line); doc.finishPage(page); pageNo++; page = doc.startPage(PdfDocument.PageInfo.Builder(PW, PH, pageNo).create()); c = page.canvas; y = 50f }
+            val prev = r.optInt("prev"); val nowv = r.optInt("now"); val used = prev - nowv; val usedL = used * r.optDouble("canVol")
+            if (usedL > 0) totL += usedL
+            c.drawText(r.optString("code"), xCode, y, txt); c.drawText(r.optString("title"), xName, y, txt)
+            c.drawText(prev.toString(), xPrev, y, txt); c.drawText(nowv.toString(), xNow, y, txt)
+            c.drawText(used.toString(), xUsed, y, if (used > 0) hd else small); c.drawText(trim(usedL), xUsedL, y, txt)
+            y += 13f
+        }
+        y += 6f; c.drawLine(M, y, PW - M, y, line); y += 16f
+        c.drawText("TOTAL USED:  ${trim(totL)} L", M, y, hd); y += 16f
+        c.drawText("USED = previous inventory − current inventory (negative = net received).", M, y, small)
+        c.drawLine(M, PH - 28f, PW - M, PH - 28f, line); c.drawText("ASPS Paint Stock · ${Prefs.vessel(ctx)}", M, PH - 16f, small)
+        doc.finishPage(page); return doc
+    }
 }

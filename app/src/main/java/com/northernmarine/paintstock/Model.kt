@@ -110,6 +110,7 @@ object Catalog {
 
 object Stock {
     private fun file(ctx: Context) = File(ctx.filesDir, "stock.json")
+    private fun invFile(ctx: Context) = File(ctx.filesDir, "inventory_state.json")
 
     fun load(ctx: Context): MutableList<PaintItem> {
         val f = file(ctx)
@@ -126,6 +127,40 @@ object Stock {
         val arr = JSONArray(); for (it in items) arr.put(it.toJson())
         file(ctx).writeText(arr.toString())
     }
+
+    private fun readInv(ctx: Context): JSONObject? = try { val f = invFile(ctx); if (f.exists()) JSONObject(f.readText()) else null } catch (_: Exception) { null }
+
+    // items with stock > 0 that were NOT scanned this session (will be zeroed by a full inventory)
+    fun notScanned(items: List<PaintItem>, tally: Map<String, Int>): List<PaintItem> =
+        items.filter { it.qtyCans > 0 && !tally.containsKey(it.code) }
+
+    // Apply a full month-end inventory: counted -> stock, unscanned -> 0, snapshot + consumption vs previous.
+    fun finishInventory(ctx: Context, items: MutableList<PaintItem>, tally: Map<String, Int>) {
+        val newQty = HashMap<String, Int>(); for (it in items) newQty[it.code] = tally[it.code] ?: 0
+        val state = readInv(ctx)
+        val prevQty = HashMap<String, Int>(); var prevDate = ""
+        if (state != null) {
+            prevDate = state.optString("invDate", "")
+            val q = state.optJSONObject("invQty"); if (q != null) for (k in q.keys()) prevQty[k] = q.optInt(k, 0)
+        }
+        val consArr = JSONArray()
+        if (prevDate.isNotEmpty()) for (it in items) {
+            val pq = prevQty[it.code] ?: 0; val nq = newQty[it.code] ?: 0
+            if (pq == 0 && nq == 0) continue
+            consArr.put(JSONObject().apply { put("code", it.code); put("title", it.title()); put("canVol", it.canVol); put("prev", pq); put("now", nq) })
+        }
+        for (it in items) it.qtyCans = newQty[it.code] ?: 0
+        save(ctx, items)
+        val out = JSONObject()
+        out.put("invDate", dmy())
+        val q = JSONObject(); for ((k, v) in newQty) q.put(k, v); out.put("invQty", q)
+        if (prevDate.isNotEmpty()) { out.put("consFrom", prevDate); out.put("consTo", dmy()); out.put("consRows", consArr) }
+        else if (state != null && state.has("consRows")) { out.put("consFrom", state.optString("consFrom")); out.put("consTo", state.optString("consTo")); out.put("consRows", state.optJSONArray("consRows")) }
+        invFile(ctx).writeText(out.toString())
+    }
+
+    // returns the saved consumption state (or null if fewer than two inventories done)
+    fun consumption(ctx: Context): JSONObject? { val s = readInv(ctx) ?: return null; return if (s.has("consRows") && (s.optJSONArray("consRows")?.length() ?: 0) > 0) s else null }
 
     fun nextCode(items: List<PaintItem>): String {
         var max = 0
